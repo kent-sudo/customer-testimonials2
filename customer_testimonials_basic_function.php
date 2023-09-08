@@ -8,7 +8,7 @@ Author: KENT
 // Enqueue Bootstrap styles and scripts
 function customer_testimonials_enqueue_bootstrap_assets() {
     global $post;
-    if (has_shortcode($post->post_content, 'show_customer_testimonials_1'))
+    if (has_shortcode($post->post_content, 'show_customer_testimonials_1')||has_shortcode($post->post_content,'show_customer_testimonial_2'))
     {
         wp_enqueue_style('prefix_bootstrap', '//cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css');
         wp_enqueue_script('prefix_bootstrap_js', '//cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js', array('jquery'), null, false);
@@ -18,6 +18,18 @@ function customer_testimonials_enqueue_bootstrap_assets() {
 }
 
 add_action('wp_enqueue_scripts', 'customer_testimonials_enqueue_bootstrap_assets');
+
+function customer_testimonials_enqueue_summernote_assets() {
+    wp_enqueue_style('summernote-bootstrap-css','//stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css' );
+    wp_enqueue_script('summernote-jquery-js', '//code.jquery.com/jquery-3.5.1.min.js', array('jquery'), null, false);
+    wp_enqueue_script('summernote-bootstrap-js', '//stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js', array('jquery'), null, false);
+    wp_enqueue_style('summernote-css', '//cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css');
+    wp_enqueue_script('summernote-js', '//cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js', array('jquery'), null, false);
+    wp_enqueue_script('summernote-init-js', plugin_dir_url(__FILE__) . 'js/summernote-init.js', array('jquery'), null, true);
+    wp_enqueue_script('summernote-zh-TW.js', plugin_dir_url(__FILE__) . 'summernote/lang/summernote-zh-TW.js', array('jquery'), null, false);
+}
+
+add_action('admin_enqueue_scripts', 'customer_testimonials_enqueue_summernote_assets');
 
 function create_customer_testimonials_table() {
     global $wpdb;
@@ -62,7 +74,7 @@ function add_add_customer_testimonials_page() {
         <h2>客戶完成樣本</h2>
         <form action="" method="post" enctype="multipart/form-data">
             <p><label>添加樣本: <input type="text" name="sub_card_title" /></label></p>
-            <p><label>點擊區的文字: <input type="text" name="sub_card_click" /></label></p>
+            <p><label>點擊區的文字: <input type="text" name="sub_card_subtitle" /></label></p>
             <p><label>圖片: <input type="file" name="sub_card_image" /></label></p>
             <p><label>詳細的的講解:</label></p>
             <textarea name="sub_card_description" type="text" id="summernote_kent" >
@@ -80,8 +92,6 @@ function add_add_customer_testimonials_page() {
                 <p>Error: <?php echo urldecode($_GET['error']); ?></p>
             </div>
         <?php endif; ?>
-
-        <!-- Rest of your form goes here -->
     </div>
     <?php
 }
@@ -89,17 +99,14 @@ function add_add_customer_testimonials_page() {
 // Handle the submission of the sub card form
 add_action('admin_init', 'handle_customer_testimonials_submission');
 function handle_customer_testimonials_submission() {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sub_card_title'],$_POST['sub_card_click'], $_POST['sub_card_description'], $_FILES['sub_card_image'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sub_card_title'],$_POST['sub_card_subtitle'], $_POST['sub_card_description'], $_FILES['sub_card_image'])) {
         global $wpdb;
 
         $sub_table_name = $wpdb->prefix . 'customer_testimonials'; // Use your sub_cards table name
 
         $sub_card_title = sanitize_text_field($_POST['sub_card_title']);
-        //summernote content
-        $content = $_POST['sub_card_description'];
-        $content = wp_kses_post($content);
-        $sub_card_description = $content;
-        $sub_card_click = $_POST['sub_card_click'];
+        $sub_card_description = wp_kses_post( $_POST['sub_card_description']);
+        $sub_card_subtitle = $_POST['sub_card_subtitle'];
         $sub_card_image = $_FILES['sub_card_image'];
 
         // Validate and sanitize uploaded image
@@ -114,19 +121,19 @@ function handle_customer_testimonials_submission() {
             if ($movefile && !isset($movefile['error'])) {
                 $image_url = esc_url($movefile['url']);
             } else {
-                wp_redirect(admin_url('admin.php?page=manage_sub_cards&error=' . urlencode($movefile['error'])));
+                wp_redirect(admin_url('admin.php?page=add_customer_testimonials&error=' . urlencode($movefile['error'])));
                 exit;
             }
         }
 
         $data = array(
             'title' => $sub_card_title,
-            'subtitle' => $sub_card_click,
+            'subtitle' => $sub_card_subtitle,
             'description' => $sub_card_description,
             'image_url' => $image_url, // Use the image URL from file upload
         );
 
-        $format = array('%s', '%s', '%d', '%s'); // Add %d for integer data
+        $format = array('%s', '%s', '%s', '%s'); // Add %d for integer data
 
         if ($wpdb->insert($sub_table_name, $data, $format)) {
             wp_redirect(admin_url('admin.php?page=add_customer_testimonials&success=true'));
@@ -168,7 +175,7 @@ function show_customer_testimonials_shortcode($atts) {
     foreach ($customer_testimonials as $customer_testimonial) {
         // Generate a link for each card with a URL parameter to identify the testimonial
         // Add 'testimonial_id' parameter to URL
-        $testimonial_url = esc_url(add_query_arg('testimonial_id', $customer_testimonial->id, 'http://localhost/wordpress/testimonial/'));
+        $testimonial_url = esc_url(add_query_arg('testimonial_id', $customer_testimonial->id, 'http://localhost/wordpress/testimonial?id='.esc_attr($customer_testimonial->id)));
         $output .= '
             <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
                 <a href="' . $testimonial_url . '" class="card-link">
@@ -203,28 +210,41 @@ function get_customer_testimonial_by_id($id) {
 add_shortcode('show_customer_testimonial_2', 'show_customer_testimonial_shortcode');
 
 function show_customer_testimonial_shortcode($atts) {
-    // Extract the ID attribute from the shortcode
-    $atts = shortcode_atts(array(
-        'id' => 0, // Default to 0 if no ID is provided
-    ), $atts);
-
-    $testimonial_id = intval($atts['id']);
-    $customer_testimonial = get_customer_testimonial_by_id($testimonial_id);
+    $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+    $customer_testimonial = get_customer_testimonial_by_id($id);
 
     if ($customer_testimonial) {
-        $output = '<div class="container"><br><div class="row self-examination-main"><em style="text-align: center;">Step 1</em><br><h3 style="text-align: center;">選擇設備類型</h3><br>';
+        $output = '<div class="container"><br><div class="row self-examination-main">';
 
         $output .= '
-            <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
-                    <div class="card shadow-sm h-100 kent-main-card" data-card-id="' . esc_attr($customer_testimonial->id) . '">
+            <div class="col" style="margin-bottom:20px;">
+                    <div class="h-100 kent-main-card" data-card-id="' . esc_attr($customer_testimonial->id) . '">
                         <img src="' . esc_url($customer_testimonial->image_url) . '" alt="' . esc_attr($customer_testimonial->title) . '" width="100%" height="auto">
                         <h5>' . esc_html($customer_testimonial->title) . '</h5>
                         <h7>' . esc_html($customer_testimonial->subtitle) . '</h7>
-                        <div><p>' . esc_html($customer_testimonial->description) . '</p></div>
+                        <div><p>' . $customer_testimonial->description . '</p></div>
                     </div>
             </div>';
         $output .= '</div></div>'; // Closing the outer div container
 
+        $output .= '<div class="container"><br><div class="row self-examination-main"><em style="text-align: center;"></em><br><h3 style="text-align: center;">其他相關推薦About Recommendation</h3><br>';
+        for ($i=1;$i<5;$i++) {
+            // Generate a link for each card with a URL parameter to identify the testimonial
+            // Add 'testimonial_id' parameter to URL
+            $customer_testimonial = get_customer_testimonial_by_id($i);
+            $testimonial_url = esc_url(add_query_arg('testimonial_id', $customer_testimonial->id, 'http://localhost/wordpress/testimonial?id='.esc_attr($customer_testimonial->id)));
+            $output .= '
+            <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
+                <a href="' . $testimonial_url . '" class="card-link">
+                    <div class="card shadow-sm h-100 kent-main-card" data-card-id="' . esc_attr($customer_testimonial->id) . '">
+                        <img src="' . esc_url($customer_testimonial->image_url) . '" alt="' . esc_attr($customer_testimonial->title) . '" width="100%" height="auto">
+                        <h5>' . esc_html($customer_testimonial->title) . '</h5>
+                        <h7>' . esc_html($customer_testimonial->subtitle) . '</h7>
+                    </div>
+                </a>
+            </div>';
+        }
+        $output .= '</div></div>';
         return $output;
     } else {
         return 'No testimonial found with the provided ID.';
