@@ -364,12 +364,12 @@ add_shortcode('show_customer_testimonials_1', 'show_customer_testimonials_shortc
 function show_customer_testimonials_shortcode($atts) {
     $customer_testimonials = get_all_customer_testimonials();
 
-    $output = '<div class="container"><br><div class="row self-examination-main"><em style="text-align: center;">Step 1</em><br><h3 style="text-align: center;">選擇設備類型</h3><br>';
+    $output = '<div class="container"><br><div class="row self-examination-main"><em style="text-align: center;"></em><br><h3 style="text-align: center;"></h3><br>';
 
     foreach ($customer_testimonials as $customer_testimonial) {
         // Generate a link for each card with a URL parameter to identify the testimonial
         // Add 'testimonial_id' parameter to URL
-        $testimonial_url = esc_url(add_query_arg('testimonial_id', $customer_testimonial->id, 'http://localhost/wordpress/testimonial?id='.esc_attr($customer_testimonial->id)));
+        $testimonial_url = esc_url(add_query_arg('testimonial_id', $customer_testimonial->id, 'https://sosdatarecovery.com.tw/testimonial?id='.esc_attr($customer_testimonial->id)));
         $output .= '
             <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
                 <a href="' . $testimonial_url . '" class="card-link " style=" text-decoration: none;" >
@@ -451,7 +451,7 @@ function show_customer_testimonial_shortcode($atts) {
         foreach ($last_datas as $last_data) {
             // Generate a link for each card with a URL parameter to identify the testimonial
             // Add 'testimonial_id' parameter to URL
-            $testimonial_url = esc_url(add_query_arg('testimonial_id', $last_data->id, 'http://localhost/wordpress/testimonial?id='.esc_attr($last_data->id)));
+            $testimonial_url = esc_url(add_query_arg('testimonial_id', $last_data->id, 'https://sosdatarecovery.com.tw/testimonial?id='.esc_attr($last_data->id)));
             $output .= '
             <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
                 <a href="' . $testimonial_url . '" class="card-link" style=" text-decoration: none;">
