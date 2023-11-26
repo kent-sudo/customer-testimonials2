@@ -3,29 +3,31 @@
     cursor: pointer;
     position: relative;
     background: white;
-    border-top-right-radius: 10px;
-    border-bottom-left-radius: 10px;
+    border-top-right-radius: 10%;
+    border-bottom-left-radius: 10%;
     transition: all 1s;
 }
 .kent-btn:after, .kent-btn:before {
-    content: " ";
-    width: 10px;
-    height: 10px;
+    content: "";
+    width: 0px;
+    height: 0px;
     position: absolute;
     border: 0px solid #fff;
     transition: all 1s;
 }
 .kent-btn:after {
-    top: -1px;
-    left: -1px;
+    top: 0px;
+    left: 0px;
     border-top: 5px solid #FF0000;
     border-left: 5px solid #FF0000;
+    border-radius: 10%;
 }
 .kent-btn:before {
-    bottom: -1px;
-    right: -1px;
+    bottom: 0px;
+    right: 0px;
     border-bottom: 5px solid #FF0000;
     border-right: 5px solid #FF0000;
+    border-radius: 10%;
 }
 .kent-btn:hover {
     border-top-right-radius: 0px;

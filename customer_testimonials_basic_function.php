@@ -373,17 +373,18 @@ function show_customer_testimonials_shortcode($atts) {
         $output .= '
             <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
                 <a href="' . $testimonial_url . '" class="card-link " style=" text-decoration: none;" >
-                    <div class="kent-btn card shadow-sm h-100 kent-main-card" data-card-id="' . esc_attr($customer_testimonial->id) . '">
-                        <img src="' . esc_url($customer_testimonial->image_url) . '" alt="' . esc_attr($customer_testimonial->title) . '" width="100%" height="auto">
-                        <h5 style="text-align: center;">' . esc_html($customer_testimonial->title) . '</h5>
-                        <h7 style="text-align: center;">' . esc_html($customer_testimonial->subtitle) . '</h7>
+                    <div  style="border-radius: 10%; text-align: center;" class="kent-btn card shadow-sm h-100 kent-main-card" data-card-id="' . esc_attr($customer_testimonial->id) . '">
+                        <img style="border-radius: 50%;object-fit:cover; margin: 10px auto;" src="' . esc_url($customer_testimonial->image_url) . '" alt="' . esc_attr($customer_testimonial->title) . '" width="90%">
+                        <div class="card-body">
+                            <h5 style="text-align: center; color: black">' . esc_html($customer_testimonial->title) . '</h5>
+                            <h7 style="text-align: center; color: #565656">' . esc_html($customer_testimonial->subtitle) . '</h7>
+                        </div>  
                     </div>
                 </a>
             </div>
             ';
     }
     $output .= '</div></div>'; // Closing the outer div container
-
     return $output;
 }
 
@@ -435,7 +436,7 @@ function show_customer_testimonial_shortcode($atts) {
         $output = '<div class="container"><br><div class="row self-examination-main">';
 
         $output .= '
-            <div class="col border-end border-start" style="margin-bottom:20px; padding: 100px">
+            <div class="col border-end border-start" style="margin-bottom:20px;5px">
                     <div class="h-100 kent-main-card" daa-card-id="' . esc_attr($customer_testimonial->id) . '">
                         <h2 style="text-align: center;">' . esc_html($customer_testimonial->title) . '</h2>
                         <h5 style="text-align: center;">' . esc_html($customer_testimonial->subtitle) . '</h5>
