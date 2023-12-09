@@ -2,7 +2,7 @@
 /*
 Plugin Name: KENT customer testimonials Plugin
 Description: A plugin to add cards from the admin panel.
-Version: 1.0
+Version: 2.0
 Author: KENT
 */
 // Enqueue Bootstrap styles and scripts
@@ -32,6 +32,8 @@ function customer_testimonials_enqueue_summernote_assets() {
 
 add_action('admin_enqueue_scripts', 'customer_testimonials_enqueue_summernote_assets');
 
+
+
 function create_customer_testimonials_table() {
     global $wpdb;
 
@@ -57,6 +59,18 @@ function create_customer_testimonials_table() {
     }
 }
 
+function install() {
+	global $wpdb;
+	$table_name = $wpdb->prefix . 'customer_testimonials';
+	$column_name = 'completion_date'; // Corrected column name
+	$create_ddl = "ALTER TABLE $table_name ADD $column_name TEXT NOT NULL;";
+
+	require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+	maybe_add_column($table_name, $column_name, $create_ddl);
+}
+
+register_activation_hook(__FILE__, 'install');
+
 // Run the function when the plugin is activated
 register_activation_hook(__FILE__, 'create_customer_testimonials_table');
 
@@ -78,7 +92,8 @@ function add_add_customer_testimonials_page() {
             <p><label>添加主標題: <input type="text" name="sub_card_title" /></label></p>
             <p><label>添加副標題: <input type="text" name="sub_card_subtitle" /></label></p>
             <p><label>裝置: <input type="text" name="sub_card_device" /></label></p>
-            <p><label>圖片: <input type="file" name="sub_card_image" /></label></p>
+            <p><label>完成時間: <input type="text" name="sub_card_complete_time" /></label></p>
+            <p><label>圖片: <input type="text" name="sub_card_image" /></label></p>
             <p><label>詳細的的講解:</label></p>
             <textarea name="sub_card_description" type="text" id="summernote_kent" >
             </textarea>
@@ -102,7 +117,7 @@ function add_add_customer_testimonials_page() {
 // Handle the submission of the sub card form
 add_action('admin_init', 'handle_customer_testimonials_submission');
 function handle_customer_testimonials_submission() {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sub_card_title'],$_POST['sub_card_subtitle'],$_POST['sub_card_device'], $_POST['sub_card_description'], $_FILES['sub_card_image'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['sub_card_title'],$_POST['sub_card_subtitle'],$_POST['sub_card_device'], $_POST['sub_card_description'], $_POST['sub_card_image'],$_POST['sub_card_complete_time'])) {
         global $wpdb;
 
         $sub_table_name = $wpdb->prefix . 'customer_testimonials'; // Use your sub_cards table name
@@ -111,31 +126,16 @@ function handle_customer_testimonials_submission() {
         $sub_card_subtitle = sanitize_text_field($_POST['sub_card_subtitle']);
         $sub_card_device = sanitize_text_field($_POST['sub_card_device']);
         $sub_card_description = wp_kses_post( $_POST['sub_card_description']);
-        $sub_card_image = $_FILES['sub_card_image'];
-
-        // Validate and sanitize uploaded image
-        $image_url = '';
-        if (!empty($sub_card_image['tmp_name'])) {
-            if (!function_exists('wp_handle_upload')) {
-                require_once(ABSPATH . 'wp-admin/includes/file.php');
-            }
-            $uploadedfile = $_FILES['sub_card_image'];
-            $upload_overrides = array('test_form' => false);
-            $movefile = wp_handle_upload($uploadedfile, $upload_overrides);
-            if ($movefile && !isset($movefile['error'])) {
-                $image_url = esc_url($movefile['url']);
-            } else {
-                wp_redirect(admin_url('admin.php?page=add_customer_testimonials&error=' . urlencode($movefile['error'])));
-                exit;
-            }
-        }
+        $sub_card_image = esc_url($_POST['sub_card_image']);
+	    $sub_card_complete_time = sanitize_text_field($_POST['sub_card_complete_time']);
 
         $data = array(
             'title' => $sub_card_title,
             'subtitle' => $sub_card_subtitle,
             'device' => $sub_card_device,
             'description' => $sub_card_description,
-            'image_url' => $image_url, // Use the image URL from file upload
+            'completion_date' => $sub_card_complete_time,
+            'image_url' => $sub_card_image, // Use the image URL from file upload
         );
 
         $format = array('%s', '%s','%s', '%s', '%s'); // Add %d for integer data
@@ -254,7 +254,8 @@ function edit_customer_testimonials_page2()
                 <p><label>主標題: <input type="text" name="customer_testimonial_title_edit" value="<?php echo esc_attr($customer_testimonial->title); ?>" /></label></p>
                 <p><label>副標題: <input type="text" name="customer_testimonial_subtitle_edit" value="<?php echo esc_attr($customer_testimonial->subtitle); ?>" /></label></p>
                 <p><label>裝置: <input type="text" name="customer_testimonial_device_edit" value="<?php echo esc_attr($customer_testimonial->device); ?>" /></label></p>
-                <p><label>圖片: <input type="file" name="customer_testimonial_image_edit" /></label></p>
+                <p><label>圖片: <input type="text" name="customer_testimonial_image_edit" value="<?php echo esc_attr($customer_testimonial->image_url); ?>" /></label></p>
+                <p><label>完成時間: <input type="text" name="customer_testimonial_complete_time" value="<?php echo esc_attr($customer_testimonial->completion_date); ?>" /></label></p>
                 <p><label>詳細的講解:</label></p>
                 <textarea name="customer_testimonial_description_edit" type="text" id="summernote_kent">
                     <?php echo $customer_testimonial->description ?>
@@ -285,35 +286,20 @@ function edit_customer_testimonials_page2()
 add_action('admin_init', 'handle_edit_customer_testimonials_submission');
 // 处理编辑后的卡片数据
 function handle_edit_customer_testimonials_submission() {
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['customer_testimonial_id_edit'], $_POST['customer_testimonial_title_edit'],$_POST['customer_testimonial_device_edit'], $_POST['customer_testimonial_subtitle_edit'], $_POST['customer_testimonial_description_edit'], $_FILES['customer_testimonial_image_edit'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['customer_testimonial_id_edit'], $_POST['customer_testimonial_title_edit'],$_POST['customer_testimonial_device_edit'], $_POST['customer_testimonial_subtitle_edit'], $_POST['customer_testimonial_description_edit'], $_POST['customer_testimonial_image_edit'], $_POST['customer_testimonial_complete_time'])) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'customer_testimonials';
         $sub_card_id = intval($_POST['customer_testimonial_id_edit']);
         $sub_card_title = sanitize_text_field($_POST['customer_testimonial_title_edit']);
         $sub_card_click = sanitize_text_field($_POST['customer_testimonial_subtitle_edit']);
         $sub_card_device = sanitize_text_field($_POST['customer_testimonial_device_edit']);
+	    $sub_card_complete_time = sanitize_text_field($_POST['customer_testimonial_complete_time']);
         //summernote content
         $content = $_POST['customer_testimonial_description_edit'];
         $content = wp_kses_post($content);
         $sub_card_description = $content;
-        $sub_card_image_edit = $_FILES['customer_testimonial_image_edit'];
+        $sub_card_image_edit = esc_url($_POST['customer_testimonial_image_edit']);
 
-        // Validate and sanitize uploaded image
-        $image_url = '';
-        if (!empty($sub_card_image_edit['tmp_name'])) {
-            if (!function_exists('wp_handle_upload')) {
-                require_once(ABSPATH . 'wp-admin/includes/file.php');
-            }
-            $uploadedfile = $_FILES['customer_testimonial_image_edit'];
-            $upload_overrides = array('test_form' => false);
-            $movefile = wp_handle_upload($uploadedfile, $upload_overrides);
-            if ($movefile && !isset($movefile['error'])) {
-                $image_url = esc_url($movefile['url']);
-            } else {
-                wp_redirect(admin_url('admin.php?page=edit_customer_testimonials2&error=' . urlencode($movefile['error'])));
-                exit;
-            }
-        }
 
         // Update card data in database
         $data = array(
@@ -321,7 +307,8 @@ function handle_edit_customer_testimonials_submission() {
             'subtitle' => $sub_card_click,
             'description' => $sub_card_description,
             'device'=>$sub_card_device,
-            'image_url' => $image_url, // Use the image URL from file upload
+            'completion_date'=>$sub_card_complete_time,
+            'image_url' => $sub_card_image_edit, // Use the image URL from file upload
         );
         $where = array('id' => $sub_card_id);
         $format = array('%s', '%s', '%s','%s'); // Data format (%s as string; more info in the wpdb documentation)
@@ -349,7 +336,8 @@ function get_all_customer_testimonials() {
             title ,
             subtitle ,
             device,
-            image_url
+            image_url,
+            completion_date
         FROM $table_name
         "
     );
@@ -378,6 +366,8 @@ function show_customer_testimonials_shortcode($atts) {
                         <div class="card-body">
                             <h5 style="text-align: center; color: black">' . esc_html($customer_testimonial->title) . '</h5>
                             <h7 style="text-align: center; color: #565656">' . esc_html($customer_testimonial->subtitle) . '</h7>
+                            <br>
+                            <p style="text-align: center; color: #565656">' . esc_html($customer_testimonial->completion_date) . '</p>
                         </div>  
                     </div>
                 </a>
@@ -441,7 +431,9 @@ function show_customer_testimonial_shortcode($atts) {
                         <h2 style="text-align: center;">' . esc_html($customer_testimonial->title) . '</h2>
                         <h5 style="text-align: center;">' . esc_html($customer_testimonial->subtitle) . '</h5>
                         <div><p>' . $customer_testimonial->description . '</p></div>
-                        <img src="' . esc_url($customer_testimonial->image_url) . '" alt="' . esc_attr($customer_testimonial->title) . '" width="100%" height="auto">    
+                        <div style="display: flex; justify-content: center; align-items: center;">
+                            <img src="' . esc_url($customer_testimonial->image_url) . '" alt="' . esc_attr($customer_testimonial->title) . '" style=" max-width:600px; margin: 10px auto;" width="90%">
+                        </div>    
                         <p style="text-align: center;">' . $customer_testimonial->device . '</p>
                     </div>
             </div>';
@@ -456,13 +448,16 @@ function show_customer_testimonial_shortcode($atts) {
             $output .= '
             <div class="col col-6 col-sm-6 col-md-3 col-lg-3" style="margin-bottom:20px;">
                 <a href="' . $testimonial_url . '" class="card-link" style=" text-decoration: none;">
-                    <div class="card shadow-sm h-100 kent-main-card kent-btn" data-card-id="' . esc_attr($last_data->id) . '">
-                        <img src="' . esc_url($last_data->image_url) . '" alt="' . esc_attr($last_data->title) . '" width="100%" height="auto">
-                        <h5 style="text-align: center;">' . esc_html($last_data->title) . '</h5>
-                        <h7 style="text-align: center;">' . esc_html($last_data->subtitle) . '</h7>
+                    <div style="border-radius: 10%; text-align: center;"  class="card shadow-sm h-100 kent-main-card kent-btn" data-card-id="' . esc_attr($last_data->id) . '">
+                        <img style="border-radius: 50%;object-fit:cover; margin: 10px auto;"  src="' . esc_url($last_data->image_url) . '" alt="' . esc_attr($last_data->title) . '" width="90%">
+                        <div class="card-body">
+                            <h5 style="text-align: center;">' . esc_html($last_data->title) . '</h5>
+                            <h7 style="text-align: center; color: #565656">' . esc_html($last_data->subtitle) . '</h7>
+                        </div> 
                     </div>
                 </a>
-            </div>';
+            </div>
+            ';
         }
         $output .= '</div></div>';
         return $output;
